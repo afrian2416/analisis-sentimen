@@ -15,8 +15,9 @@ indonesian_stopwords = set(factory.get_stop_words())
 
 # Load model and tokenizer from Hugging Face
 model_name = "Edelweisse/bert-sentiment"
-tokenizer = AutoTokenizer.from_pretrained(model_name)
-model = AutoModelForSequenceClassification.from_pretrained(model_name)
+auth_token = "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"
+tokenizer = AutoTokenizer.from_pretrained(model_name, use_auth_token=auth_token)
+model = AutoModelForSequenceClassification.from_pretrained(model_name, use_auth_token=auth_token)
 label_index = {'LABEL_0': 'positive', 'LABEL_1': 'neutral', 'LABEL_2': 'negative'}
 
 # Define function for single sentence analysis
