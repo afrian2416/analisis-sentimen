@@ -18,8 +18,8 @@ indonesian_stopwords = set(factory.get_stop_words())
 # Load model and tokenizer
 model_name = "Edelweisse/bert-sentiment"
 token = "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"
-tokenizer = AutoTokenizer.from_pretrained(model_name, token=token, force_download=True)
-model = AutoModelForSequenceClassification.from_pretrained(model_name, token=token, force_download=True)
+tokenizer = AutoTokenizer.from_pretrained(model_name, token=token, force_download=True, max_length=512)
+model = AutoModelForSequenceClassification.from_pretrained(model_name, token=token,  force_download=True, max_length=512)
 label_index = {'LABEL_0': 'positive', 'LABEL_1': 'neutral', 'LABEL_2': 'negative'}
 
 # Define function for single sentence analysis
