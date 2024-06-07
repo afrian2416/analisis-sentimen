@@ -13,11 +13,11 @@ from Sastrawi.StopWordRemover.StopWordRemoverFactory import StopWordRemoverFacto
 factory = StopWordRemoverFactory()
 indonesian_stopwords = set(factory.get_stop_words())
 
-# Load model and tokenizer from Hugging Face
+# Load model and tokenizer
 model_name = "Edelweisse/bert-sentiment"
-auth_token = "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"
-tokenizer = AutoTokenizer.from_pretrained(model_name, use_auth_token=auth_token)
-model = AutoModelForSequenceClassification.from_pretrained(model_name, use_auth_token=auth_token)
+token = "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"
+tokenizer = AutoTokenizer.from_pretrained(model_name, token=token)
+model = AutoModelForSequenceClassification.from_pretrained(model_name, token=token)
 label_index = {'LABEL_0': 'positive', 'LABEL_1': 'neutral', 'LABEL_2': 'negative'}
 
 # Define function for single sentence analysis
@@ -50,6 +50,17 @@ def analyze_sentiment_batch(texts):
         sentiments.append(result['label'])
     return cleaned_texts, sentiments
 
+# Function to read CSV with multiple delimiters
+def read_csv_with_multiple_delimiters(uploaded_file):
+    delimiters = [',', ';', '\t']
+    for delimiter in delimiters:
+        try:
+            df = pd.read_csv(uploaded_file, delimiter=delimiter)
+            return df, delimiter
+        except pd.errors.ParserError:
+            continue
+    raise pd.errors.ParserError("Could not parse the file with any of the common delimiters.")
+
 # Main function
 def main():
     st.title("Sentiment Analysis")
@@ -69,71 +80,77 @@ def main():
         st.title("Batch Sentiment Analysis")
         uploaded_file = st.file_uploader("Upload a CSV or Excel file", type=["csv", "xlsx"])
         if uploaded_file is not None:
-            # Read the file into a DataFrame
-            delimiter = st.text_input("Enter the delimiter (e.g., ',' , ';' , '\\t' , etc.):", ',')
-            df = pd.read_csv(uploaded_file, delimiter=delimiter)
-
-            # Display uploaded data
-            st.subheader("Uploaded Data")
-            st.write(df)
-
-            # Get text columns
-            text_columns = [col for col in df.columns if df[col].dtype == 'object']
-
-            if len(text_columns) == 0:
-                st.write("No text columns found in the uploaded file.")
-            else:
-                # Let user select a text column
-                selected_column = st.selectbox("Select the column to analyze:", text_columns)
-
-                if st.button("Batch Analyze"):
-                    # Get text data from the selected column
-                    texts = df[selected_column].tolist()
-
-                    # Analyze sentiment for batch of sentences
-                    cleaned_texts, sentiments = analyze_sentiment_batch(texts)
-
-                    # Create a DataFrame with cleaned text and sentiments
-                    results_df = pd.DataFrame({
-                        'text': cleaned_texts,
-                        'sentiment': sentiments
-                    })
-
-                    # Display sentiment distribution
-                    sentiment_counts = Counter(sentiments)
-                    st.subheader("Sentiment Distribution")
-                    fig = px.bar(
-                        x=list(sentiment_counts.keys()),
-                        y=list(sentiment_counts.values()),
-                        labels={'x': 'Sentiment', 'y': 'Count'},
-                        color=list(sentiment_counts.keys()),
-                        color_discrete_map={
-                            'positive': 'blue',
-                            'neutral': 'gray',
-                            'negative': 'red'
-                        }
-                    )
-                    st.plotly_chart(fig)
-
-                    # Generate word cloud for each sentiment
-                    st.subheader("Word Cloud")
-                    custom_stopwords = set(STOPWORDS)
-                    custom_stopwords.update(['bpjs', 'muhammadiyah'])
-                    custom_stopwords.update(indonesian_stopwords)
-
-                    for sentiment in ["positive", "neutral", "negative"]:
-                        sentiment_texts = [text for text, sent in zip(cleaned_texts, sentiments) if sent == sentiment]
-                        all_texts = ' '.join(sentiment_texts)
-                        wordcloud = WordCloud(width=800, height=400, background_color='white', stopwords=custom_stopwords).generate(all_texts)
-                        st.write(f"{sentiment.capitalize()} Word Cloud")
-                        plt.figure(figsize=(10, 5))
-                        plt.imshow(wordcloud, interpolation='bilinear')
-                        plt.axis("off")
-                        st.pyplot(plt)
-
-                    # Display the results DataFrame
-                    st.subheader("Analyzed Data")
-                    st.write(results_df)
+            try:
+                # Read the file into a DataFrame
+                df, used_delimiter = read_csv_with_multiple_delimiters(uploaded_file)
+                
+                st.write(f"Used delimiter: '{used_delimiter}'")
+                
+                # Display uploaded data
+                st.subheader("Uploaded Data")
+                st.write(df)
+    
+                # Get text columns
+                text_columns = [col for col in df.columns if df[col].dtype == 'object']
+    
+                if len(text_columns) == 0:
+                    st.write("No text columns found in the uploaded file.")
+                else:
+                    # Let user select a text column
+                    selected_column = st.selectbox("Select the column to analyze:", text_columns)
+    
+                    if st.button("Batch Analyze"):
+                        # Get text data from the selected column
+                        texts = df[selected_column].tolist()
+    
+                        # Analyze sentiment for batch of sentences
+                        cleaned_texts, sentiments = analyze_sentiment_batch(texts)
+    
+                        # Create a DataFrame with cleaned text and sentiments
+                        results_df = pd.DataFrame({
+                            'text': cleaned_texts,
+                            'sentiment': sentiments
+                        })
+    
+                        # Display sentiment distribution
+                        sentiment_counts = Counter(sentiments)
+                        st.subheader("Sentiment Distribution")
+                        fig = px.bar(
+                            x=list(sentiment_counts.keys()),
+                            y=list(sentiment_counts.values()),
+                            labels={'x': 'Sentiment', 'y': 'Count'},
+                            color=list(sentiment_counts.keys()),
+                            color_discrete_map={
+                                'positive': 'blue',
+                                'neutral': 'gray',
+                                'negative': 'red'
+                            }
+                        )
+                        st.plotly_chart(fig)
+    
+                        # Generate word cloud for each sentiment
+                        st.subheader("Word Cloud")
+                        custom_stopwords = set(STOPWORDS)
+                        custom_stopwords.update(['bpjs', 'muhammadiyah'])
+                        custom_stopwords.update(indonesian_stopwords)
+    
+                        for sentiment in ["positive", "neutral", "negative"]:
+                            sentiment_texts = [text for text, sent in zip(cleaned_texts, sentiments) if sent == sentiment]
+                            all_texts = ' '.join(sentiment_texts)
+                            wordcloud = WordCloud(width=800, height=400, background_color='white', stopwords=custom_stopwords).generate(all_texts)
+                            st.write(f"{sentiment.capitalize()} Word Cloud")
+                            plt.figure(figsize=(10, 5))
+                            plt.imshow(wordcloud, interpolation='bilinear')
+                            plt.axis("off")
+                            st.pyplot(plt)
+    
+                        # Display the results DataFrame
+                        st.subheader("Analyzed Data")
+                        st.write(results_df)
+            except pd.errors.ParserError:
+                st.error("Error parsing CSV file. Please check the file and ensure it is properly formatted.")
+            except Exception as e:
+                st.error(f"An error occurred: {e}")
 
 if __name__ == "__main__":
     main()
